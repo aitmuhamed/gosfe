@@ -7,11 +7,12 @@ import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 import BasicTableOne from "@/components/tables/BasicTableOne";
 import Badge from "@/components/ui/badge/Badge";
-import Button from "@/components/ui/button/Button";
+// import Button from "@/components/ui/button/Button";
 import { Modal } from "@/components/ui/modal";
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+//import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { useModal } from "@/hooks/useModal";
 import { useEffect, useState } from "react";
+import { Button, message, Table } from 'antd';
 
 
 export default function Page() {
@@ -21,43 +22,49 @@ export default function Page() {
   const [selectMaterialGroup, setSelectMaterialGroup] = useState<string>("");
   const [details, setDetails] = useState<any>(null);
   const [unit, setUnit] = useState<string>("");
-  const [state, setState] = useState<any>({ group: "", type: "", category: "", division: "", short_description: "", long_description: "", units: "" });
+  const initialState = { group: "", type: "", category: "", division: "", short_description: "", long_description: "", units: "", name: "", color: "", size: "", value: "", name1: "", additional_info: "" };
+  const [state, setState] = useState<any>(initialState);
   const [materialData, setMaterialData] = useState<any[]>([]);
 
+
+  const fetchData = async () => {
+    try {
+      //const res = await fetch("http://10.10.228.148:8000/material-groups/descriptions");
+      const res = await fetch("http://172.16.16.7:8000/material-groups/descriptions");
+      const json = await res.json();
+      setData(json);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
+  const fetchUnitData = async () => {
+    try {
+      //const res = await fetch("http://10.10.228.148:8000/units");
+      const res = await fetch("http://172.16.16.7:8000/units");
+      const json = await res.json();
+      setUnitData(json);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
+  const fetchMaterialData = async () => {
+    try {
+      const res = await fetch("http://172.16.16.7:8000/all-requests ");
+      //const res = await fetch("http://10.10.228.148:8000/all-requests ");
+      const json = await res.json();
+      setMaterialData(json);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("http://10.10.228.148:8000/material-groups/descriptions");
-        const json = await res.json();
-        setData(json);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
-
-    const fetchUnitData = async () => {
-      try {
-        const res = await fetch("http://10.10.228.148:8000/units");
-        const json = await res.json();
-        setUnitData(json);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
-
-    const fetchMaterialData = async () => {
-      try {
-        const res = await fetch("http://10.10.228.148:8000/all-requests ");
-        const json = await res.json();
-        setMaterialData(json);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
-
     fetchData();
     fetchUnitData();
     fetchMaterialData();
+
   }, []);
 
   const handleSelectChange = (value: string) => {
@@ -72,7 +79,8 @@ export default function Page() {
     const fetchDetails = async () => {
       if (selectMaterialGroup) {
         try {
-          const res = await post(`http://10.10.228.148:8000/material-groups/${selectMaterialGroup}`);
+          const res = await post(`http://172.16.16.7:8000/material-groups/${selectMaterialGroup}`);
+          //const res = await post(`http://10.10.228.148:8000/material-groups/${selectMaterialGroup}`);
           const json = await res.json();
           setDetails(json);
         } catch (err) {
@@ -85,20 +93,17 @@ export default function Page() {
 
   const handleSave = async () => {
     const payload = {
-        group: details?.group || "",
-        type: details?.type || "",
-        category: details?.category || "",
-        division: details?.division ? "40" : "40", // send actual division
-        short_description: `${state.name},${state.color},${state.size},${state.value}`,
-        long_description: "",
-        units: unit
-      };
-            console.log("body::",JSON.stringify(payload));
-      debugger
-
-
+      group: details?.group || "",
+      type: details?.type || "",
+      category: details?.category || "",
+      division: details?.division ? "40" : "40", // send actual division
+      short_description: state?.name ? `${state.name},${state.color},${state.size},${state.value}` : `${state.name1.toUpperCase()},${state.additional_info.toUpperCase()}`,
+      long_description: "",
+      units: unit
+    };
     try {
-      const res = await fetch("http://10.10.228.148:8000/material-requests", {
+      //const res = await fetch("http://10.10.228.148:8000/material-requests", {
+      const res = await fetch("http://172.16.16.7:8000/material-requests", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -106,14 +111,27 @@ export default function Page() {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) {
+      if (res.status === 200) {
+        message.success("Material request created successfully");
+        closeModal();
+      } else {
         console.error("Failed:", res.status, res.statusText);
         return;
       }
-      console.log("Response:", data);
+
     } catch (err) {
       console.error("Error creating material request:", err);
     }
+    fetchMaterialData();
+  };
+
+  // Close modal and reset form state
+  const handleCloseModal = () => {
+    closeModal();
+    setSelectMaterialGroup("");
+    setDetails(null);
+    setUnit("");
+    setState(initialState);
   };
 
   return (
@@ -146,83 +164,26 @@ export default function Page() {
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
             <div className="max-w-full overflow-x-auto">
               <div className="min-w-[1102px]">
-                <Table>
-                  {/* Table Header */}
-                  <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
-                    <TableRow>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
-                        Group
-                      </TableCell>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
-                        Type
-                      </TableCell>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
-                        Category
-                      </TableCell>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
-                        Division
-                      </TableCell>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
-                        Units
-                      </TableCell>
-                    </TableRow>
-                  </TableHeader>
-
-                  {/* Table Body */}
-                  <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                    {materialData.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="px-5 py-4 sm:px-6 text-start">
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <span className="block font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                                {order.group}
-                              </span>
-                              <span className="block text-gray-500 text-theme-xs dark:text-gray-400">
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                          {order.type}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                          <div className="flex -space-x-2">
-                            {order.category}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-gray-500 text-start text-theme-sm dark:text-gray-400">
-                          {order.division === 40 && "Gobi"}
-                        </TableCell>
-                        <TableCell className="px-4 py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                          {order.units}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <Table
+                  dataSource={materialData}
+                  columns={[
+                    { title: 'Group', dataIndex: 'group', key: 'group', },
+                    { title: 'Type', dataIndex: 'type', key: 'type', }, 
+                    { title: 'Category', dataIndex: 'category', key: 'category', }, 
+                    { title: 'Short Description', dataIndex: 'short_description', key: 'short_description', },
+                    { title: 'division', dataIndex: 'division', render: (text) => <>{text === '40' && 'Gobi'}</>, key: 'division', },
+                    { title: 'Units', dataIndex: 'units', key: 'units', },
+                  ]}
+                  rowKey="material_id"
+                  key={"material"}
+                />
               </div>
             </div>
           </div>
         </ComponentCard>
       </div>
 
-      <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
+      <Modal isOpen={isOpen} onClose={handleCloseModal} className="max-w-[700px] m-4">
         <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
             <h4 className="mb-2 text-2xl font-semibold text-gray-800 dark:text-white/90">
@@ -253,8 +214,6 @@ export default function Page() {
 
                     </div>
                   </div>
-
-
                   <div>
                     <p className="mb-2 text-xs leading-normal text-gray-500 dark:text-gray-400">
                       Category
@@ -328,6 +287,8 @@ export default function Page() {
                           <Input
                             type="text"
                             placeholder="Enter name"
+                            defaultValue={state.name1}
+                            onChange={(e) => setState({ ...state, name1: e.target.value })}
                           />
                         </div>
                       </div>
@@ -338,7 +299,9 @@ export default function Page() {
                         <div className="relative">
                           <Input
                             type="text"
-                            placeholder="Enter additional info"
+                            placeholder="Additional info"
+                            defaultValue={state.additional_info}
+                            onChange={(e) => setState({ ...state, additional_info: e.target.value })}
                           />
                         </div>
                       </div>
@@ -430,12 +393,10 @@ export default function Page() {
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
-              <Button size="sm" variant="outline" onClick={closeModal}>
+              <Button onClick={handleCloseModal}>
                 Close
               </Button>
-              <Button size="sm" onClick={handleSave}>
-                Create
-              </Button>
+              <Button type="primary" onClick={handleSave}>Create</Button>
             </div>
           </form>
         </div>
@@ -454,4 +415,5 @@ function post(url: string) {
     body: JSON.stringify({ body: "example" })
   });
 }
+
 
